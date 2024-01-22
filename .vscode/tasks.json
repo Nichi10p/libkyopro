@@ -1,0 +1,99 @@
+{
+  "version": "2.0.0",
+  "windows": {
+    "options": {
+      "shell": {
+        "executable": "cmd.exe",
+        "args": [
+          "/C",
+          "\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
+          "&&"
+        ]
+      }
+    }
+  },
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "C++20 (MSVC release)",
+      "command": "cl.exe",
+      "args": [
+        "/std:c++20",
+        "/O2",
+        "/DLOCAL",
+        "/IC:/Users/Public/boost_1_82_0",
+        "/IC:/Users/Public/ac-library",
+        "/EHsc",
+        "/F1000000000",
+        "/source-charset:UTF-8",
+        "/execution-charset:Shift_JIS",
+        "/Fe${fileDirname}\\${fileBasenameNoExtension}",
+        "${file}"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "コンパイラ: cl.exe"
+    },
+    {
+      "type": "shell",
+      "label": "C++20 (MSVC debug)",
+      "command": "cl.exe",
+      "args": [
+        "/std:c++20",
+        "/DLOCAL",
+        "/IC:/Users/Public/boost_1_82_0",
+        "/IC:/Users/Public/ac-library",
+        "/Zi",
+        "/EHac",
+        "/RTCsu",
+        "/fsanitize=address",
+        "/F1000000000",
+        "/source-charset:UTF-8",
+        "/execution-charset:Shift_JIS",
+        "/Fe${fileDirname}\\${fileBasenameNoExtension}",
+        "${file}"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "コンパイラー: cl.exe"
+    },
+    {
+      "type": "shell",
+      "label": "C17 (MSVC release)",
+      "command": "cl.exe",
+      "args": [
+        "/std:c17",
+        "/O2",
+        "/DLOCAL",
+        "/F1000000000",
+        "/source-charset:UTF-8",
+        "/execution-charset:Shift_JIS",
+        "/Fe${fileDirname}\\${fileBasenameNoExtension}",
+        "${file}"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "コンパイラー: cl.exe"
+    },
+    {
+      "type": "shell",
+      "label": "C17 (MSVC debug)",
+      "command": "cl.exe",
+      "args": [
+        "/std:c17",
+        "/DLOCAL",
+        "/Zi",
+        "/RTCsu",
+        "/fsanitize=address",
+        "/F1000000000",
+        "/source-charset:UTF-8",
+        "/execution-charset:Shift_JIS",
+        "/Fe${fileDirname}\\${fileBasenameNoExtension}",
+        "${file}"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "コンパイラー: cl.exe"
+    },
+  ]
+}

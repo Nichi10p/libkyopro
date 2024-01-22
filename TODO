@@ -1,0 +1,34 @@
+- データ構造 class
+  - ポテンシャル付きUnion-Find
+  - merge split できる平衡二分木
+  - 永続データ構造
+  - treap
+  - succinct bit vector
+  - wavelet matrix
+  - bloom filter
+
+- グラフアルゴリズム graph
+  - 全方位木dp
+    - ライブラリ本体を1ファイルに & サンプルコードは別パッケージへ
+  - トポロジカルソート
+
+- 数論アルゴリズム numeric
+  - mod逆元
+  - 二項係数 mod
+  - 行列累乗
+
+- 幾何アルゴリズム geometry
+  - 凸包
+  - ボロノイ図
+  - ドロネー三角形分割
+
+- 文字列アルゴリズム string
+  - ローリングハッシュ
+  - manacher
+
+- ランダム生成 random
+  - グラフ
+
+- 処遇未定
+  - grid.cpp 削除?
+  - timer.cpp
