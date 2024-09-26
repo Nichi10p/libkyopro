@@ -11,9 +11,10 @@ using namespace std;
  */
 template<typename modint> class CombMod {
   public:
-  explicit CombMod(int const N) : _fact(N+1), _inv(N+1), _fact_inv(N+1) {
+  CombMod(int const N, int const MOD = modint::mod())
+  : _fact(N+1), _inv(N+1), _fact_inv(N+1)
+  {
     assert(N > 0);
-    int const MOD = modint::mod();
     _fact[0] = modint(1);
     _fact[1] = modint(1);
     // _inv[0]: undefined
@@ -38,6 +39,7 @@ template<typename modint> class CombMod {
       return fact(n) * _fact_inv[n-r];
   }
   modint comb(int const n, int const r) {
+    assert(0 <= r);
     if (n < r)
       return modint(0);
     else

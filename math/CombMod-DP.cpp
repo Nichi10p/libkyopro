@@ -8,9 +8,11 @@ using namespace std;
  * query \f$ O(1) \f$
  * @ref https://drken1215.hatenablog.com/entry/2018/06/08/210000
  */
-template<typename modint> class CombModDP {
+template<typename modint> class CombMod {
   public:
-  explicit CombModDP(int const N) : _dp(N+1, vector<modint>(N+1)) {
+  explicit CombMod(int const N)
+  : _dp(N+1, vector<modint>(N+1))
+  {
     assert(N > 0);
     _dp[0][0] = modint(1);
     for (int n=1; n <= N; ++n) {
@@ -19,14 +21,15 @@ template<typename modint> class CombModDP {
         _dp[n][r] = _dp[n-1][r-1] + _dp[n-1][r];
     }
   }
-  modint comb(int n, int r) {
+  modint comb(int const n, int const r) {
     assert(0 <= n && n < (int)_dp.size());
+    assert(0 <= r);
     if (n < r)
       return modint(0);
     else
       return _dp[n][r];
   }
-  modint multicomb(int n, int r) {
+  modint multicomb(int const n, int const r) {
     return comb(n+r-1, r);
   }
   private:
