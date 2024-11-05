@@ -7,24 +7,7 @@ using namespace std;
 
 // qiita.com/keymoon/items/11fac5627672a6d6a9f6
 // www.slideshare.net/slideshow/rolling-hash-149990902/149990902
-class RHashInfo {
-  private:
-  size_t _len, _val;
-  public:
-  RHashInfo() = default;
-  RHashInfo(size_t const len, size_t const val) : _len(len), _val(val) {}
-  size_t value() const { return _val; }
-  RHashInfo& operator+=(RHashInfo const &);
-  friend RHashInfo operator+(RHashInfo h1, RHashInfo const &h2) {
-    h1 += h2;
-    return h1;
-  }
-  friend bool operator==(RHashInfo const &h1, RHashInfo const &h2) {
-    return h1._len == h2._len && h1._val == h2._val;
-  }
-};
 class RollingHash {
-  friend class RHashInfo;
   private:
   struct Mod {
     static constexpr size_t value() {
@@ -50,13 +33,30 @@ class RollingHash {
   };
   static inline size_t _base{0};
   static inline vector<size_t> _powb;  // pow(base, i) % mod
-  static void _powb_extend(size_t const new_size) {
-    _powb.reserve(new_size);
+  static void _extend_powb(size_t const new_size) {
     while (_powb.size() < new_size)
       _powb.push_back(Mod::mul(_powb.back(), _base) % Mod{});
   }
   vector<size_t> _hash;  // hash of str[0:i)
   public:
+  class HashInfo {
+    private:
+    size_t _len, _val;
+    public:
+    HashInfo(size_t const len, size_t const val) : _len(len), _val(val) {}
+    HashInfo& operator+=(HashInfo const &h) {
+      _len += h._len;
+      _val = (Mod::mul(_val, _powb[h._len]) + h._val) % Mod{};
+      return *this;
+    }
+    friend HashInfo operator+(HashInfo h1, HashInfo const &h2) {
+      h1 += h2;
+      return h1;
+    }
+    friend bool operator==(HashInfo const &h1, HashInfo const &h2) {
+      return h1._len == h2._len && h1._val == h2._val;
+    }
+  };
   static void set_base() {
     assert(_base == 0);
     random_device dev;
@@ -64,27 +64,27 @@ class RollingHash {
     _base = randint(dev);
     _powb = {1};
   }
-  static RHashInfo full_hash(string_view const sv) {
+  static HashInfo hash(string_view const str) {
     assert(_base > 1);
     size_t h{0};
-    for (char const c : sv)
+    for (char const c : str)
       h = (Mod::mul(h, _base) + c) % Mod{};
-    return RHashInfo{sv.size(), h};
+    return HashInfo{str.size(), h};
   }
   RollingHash() = default;
   explicit RollingHash(string_view const str) : _hash(str.size()+1, 0) {
     assert(_base > 1);
     for (size_t i{0}; i < str.size(); ++i)
       _hash[i+1] = (Mod::mul(_hash[i], _base) + str[i]) % Mod{};
-    _powb_extend(_hash.size());
+    _extend_powb(_hash.size());
   }
-  RHashInfo substr(size_t const pos, size_t const len) const {
+  HashInfo substr(size_t const pos, size_t const len) const {
     assert(pos+len < _hash.size());
     constexpr size_t positivizer{Mod::value() * 4};
-    return RHashInfo{len, (_hash[pos+len] + positivizer - Mod::mul(_hash[pos], _powb[len])) % Mod{}};
+    return HashInfo{len, (_hash[pos+len] + positivizer - Mod::mul(_hash[pos], _powb[len])) % Mod{}};
   }
   vector<size_t> search(string_view const str) const {
-    RHashInfo h{full_hash(str)};
+    HashInfo h{hash(str)};
     vector<size_t> idx;
     for (size_t i{0}; i+str.size() < _hash.size(); ++i)
       if (substr(i, str.size()) == h)
@@ -96,7 +96,7 @@ class RollingHash {
     _hash.reserve(_hash.size() + rh._hash.size());
     for (size_t i{1}; i < rh._hash.size(); ++i)
       _hash.push_back((Mod::mul(_this, _powb[i]) + rh._hash[i]) % Mod{});
-    _powb_extend(_hash.size());
+    _extend_powb(_hash.size());
     return *this;
   }
   friend RollingHash operator+(RollingHash rh1, RollingHash const &rh2) {
@@ -104,8 +104,3 @@ class RollingHash {
     return rh1;
   }
 };
-RHashInfo& RHashInfo::operator+=(RHashInfo const &h) {
-  _len += h._len;
-  _val = (RollingHash::Mod::mul(_val, RollingHash::_powb[h._len]) + h._val) % RollingHash::Mod{};
-  return *this;
-}
