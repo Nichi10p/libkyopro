@@ -1,5 +1,3 @@
-#include <cstddef>
-#include <cassert>
 #include <random>
 #include <vector>
 #include <string_view>
@@ -7,100 +5,120 @@ using namespace std;
 
 // qiita.com/keymoon/items/11fac5627672a6d6a9f6
 // www.slideshare.net/slideshow/rolling-hash-149990902/149990902
+using uint128_t = __uint128_t;
+// using boost::multiprecision::uint128_t;
 class RollingHash {
   private:
-  struct Mod {
-    static constexpr size_t value() {
-      return (static_cast<size_t>(1) << 61) - 1;
-    }
-    static constexpr size_t mul(size_t const a, size_t const b) {
-      assert(a < value());
-      assert(b < value());
-      constexpr size_t mask31{(static_cast<size_t>(1) << 31) - 1};
-      constexpr size_t mask30{(static_cast<size_t>(1) << 30) - 1};
-      size_t const au{a >> 31}, ad{a & mask31};
-      size_t const bu{b >> 31}, bd{b & mask31};
-      size_t const m{ad*bu + au*bd};
-      size_t const mu{m >> 30}, md{m & mask30};
-      return au*bu*2 + mu+(md<<31) + ad*bd;
-    }
-    friend constexpr size_t operator%(size_t h, Mod) {
-      h = (h >> 61) + (h & value());
-      if (h >= value())
-        h -= value();
-      return h;
+  struct _mod {
+    static constexpr size_t _value = (1ULL << 61) - 1;
+    friend constexpr size_t operator%(uint128_t _n, _mod) {
+      _n = (_n >> 61) + (_n & _value);
+      if (_n >= _value)
+        _n -= _value;
+      return _n;
     }
   };
-  static inline size_t _base{0};
+  static inline uint128_t      _base{0};
   static inline vector<size_t> _powb;  // pow(base, i) % mod
-  static void _extend_powb(size_t const new_size) {
-    while (_powb.size() < new_size)
-      _powb.push_back(Mod::mul(_powb.back(), _base) % Mod{});
+  vector<size_t>               _hash;  // hash(str[0:i))
+  static void _set_base() {
+    random_device _dev;
+    uniform_int_distribution<size_t> _randint{2, _mod::_value-2};
+    _base = _randint(_dev);
+    _powb.assign(1, 1);
   }
-  vector<size_t> _hash;  // hash of str[0:i)
+  static void _extend_powb(size_t const _n) {
+    if (_powb.size() >= _n)
+      return;
+    size_t _i = _powb.size();
+    size_t _v = _powb.back();
+    _powb.resize(_n);
+    while (_i < _n) {
+      _v = _v * _base % _mod{};
+      _powb[_i++] = _v;
+    }
+  }
+  static auto _full_hash(string_view const _sv) {
+    size_t _h{0};
+    for (char const _c : _sv)
+      _h = (_h * _base + _c) % _mod{};
+    return _h;
+  }
   public:
-  class HashInfo {
-    private:
-    size_t _len, _val;
-    public:
-    HashInfo(size_t const len, size_t const val) : _len(len), _val(val) {}
-    HashInfo& operator+=(HashInfo const &h) {
-      _len += h._len;
-      _val = (Mod::mul(_val, _powb[h._len]) + h._val) % Mod{};
-      return *this;
-    }
-    friend HashInfo operator+(HashInfo h1, HashInfo const &h2) {
-      h1 += h2;
-      return h1;
-    }
-    friend bool operator==(HashInfo const &h1, HashInfo const &h2) {
-      return h1._len == h2._len && h1._val == h2._val;
-    }
-  };
-  static void set_base() {
-    assert(_base == 0);
-    random_device dev;
-    uniform_int_distribution<size_t> randint{2, Mod::value()-2};
-    _base = randint(dev);
-    _powb = {1};
-  }
-  static HashInfo hash(string_view const str) {
-    assert(_base > 1);
-    size_t h{0};
-    for (char const c : str)
-      h = (Mod::mul(h, _base) + c) % Mod{};
-    return HashInfo{str.size(), h};
-  }
   RollingHash() = default;
-  explicit RollingHash(string_view const str) : _hash(str.size()+1, 0) {
-    assert(_base > 1);
-    for (size_t i{0}; i < str.size(); ++i)
-      _hash[i+1] = (Mod::mul(_hash[i], _base) + str[i]) % Mod{};
+  explicit RollingHash(string_view const _sv) : _hash(_sv.size()+1) {
+    if (_powb.empty())
+      _set_base();
+    for (size_t _i=0; _i < _sv.size(); ++_i)
+      _hash[_i+1] = (_hash[_i] * _base + _sv[_i]) % _mod{};
     _extend_powb(_hash.size());
   }
-  HashInfo substr(size_t const pos, size_t const len) const {
-    assert(pos+len < _hash.size());
-    constexpr size_t positivizer{Mod::value() * 4};
-    return HashInfo{len, (_hash[pos+len] + positivizer - Mod::mul(_hash[pos], _powb[len])) % Mod{}};
+  auto substr_hash(size_t const _pos = 0, size_t _len = -1) const {
+    size_t _hl, _hr;
+    if (_len == (size_t)-1 || _pos + _len >= _hash.size()) {
+      // _pos + _len == _hash.size()-1
+      _hr = _hash.back();
+      _hl = uint128_t{_hash[_pos]} * _powb[_hash.size()-1 - _pos] % _mod{};
+    }
+    else {
+      _hr = _hash[_pos+_len];
+      _hl = uint128_t{_hash[_pos]} * _powb[_len] % _mod{};
+    }
+    if (_hl <= _hr)
+      return _hr - _hl;
+    else
+      return _hr + _mod::_value - _hl;
   }
-  vector<size_t> search(string_view const str) const {
-    HashInfo h{hash(str)};
-    vector<size_t> idx;
-    for (size_t i{0}; i+str.size() < _hash.size(); ++i)
-      if (substr(i, str.size()) == h)
-        idx.push_back(i);
-    return idx;
+  bool starts_with(string_view _sv) const {
+    return _sv.size() < _hash.size() && substr_hash(0, _sv.size()) == _full_hash(_sv);
   }
-  RollingHash& operator+=(RollingHash const &rh) {
-    size_t const _this{_hash.back()};
-    _hash.reserve(_hash.size() + rh._hash.size());
-    for (size_t i{1}; i < rh._hash.size(); ++i)
-      _hash.push_back((Mod::mul(_this, _powb[i]) + rh._hash[i]) % Mod{});
+  bool ends_with(string_view _sv) const {
+    return _sv.size() < _hash.size() && substr_hash(_hash.size()-1 - _sv.size()) == _full_hash(_sv);
+  }
+  auto find(string_view _sv, size_t const _pos = 0) const {
+    auto const _h = _full_hash(_sv);
+    for (size_t _i=_pos; _i+_sv.size() < _hash.size(); ++_i)
+      if (substr_hash(_i, _sv.size()) == _h)
+        return _i;
+    return (size_t)-1;
+  }
+  auto rfind(string_view _sv, size_t const _pos = -1) const {
+    if (_hash.size() < _sv.size())
+      return (size_t)-1;
+    auto const _h = _full_hash(_sv);
+    size_t _i;
+    if (_pos >= _hash.size())
+      _i = _hash.size() - _sv.size();
+    else
+      _i = _pos + 1;
+    while (_i--)
+      if (substr_hash(_i, _sv.size()) == _h)
+        return _i;
+    return (size_t)-1;
+  }
+  void push_back(char const _c) {
+    _hash.push_back((_hash.back() * _base + _c) % _mod{});
+    _extend_powb(_hash.size());
+  }
+  RollingHash& operator+=(char const _c) {
+    push_back(_c);
+    return *this;
+  }
+  RollingHash& operator+=(string_view _sv) {
+    size_t const _z = _hash.size();
+    _hash.resize(_hash.size() + _sv.size());
+    for (size_t _i=0; _i < _sv.size(); ++_i)
+      _hash[_z+_i] = (_hash[_z+_i-1] * _base + _sv[_i]) % _mod{};
     _extend_powb(_hash.size());
     return *this;
   }
-  friend RollingHash operator+(RollingHash rh1, RollingHash const &rh2) {
-    rh1 += rh2;
-    return rh1;
+  RollingHash& operator+=(RollingHash const &_rh) {
+    size_t const    _z = _hash.size();
+    uint128_t const _h = _hash.back();
+    _hash.resize(_hash.size() + _rh._hash.size() - 1);
+    for (size_t _i=1; _i < _rh._hash.size(); ++_i)
+      _hash[_z+_i-1] = (_h * _powb[_i] + _rh._hash[_i]) % _mod{};
+    _extend_powb(_hash.size());
+    return *this;
   }
 };
