@@ -2,112 +2,127 @@
 #include <utility>
 #include <iterator>
 #include <functional>
-#include <numeric>
-#include "ext/pb_ds/assoc_container.hpp"
-typedef long long ll;
+#include <set>
 
 // https://www.slideshare.net/slideshow/convex-hull-trick/141103494
+// https://yukicoder.me/submissions/910675
+class Line {
+  friend class CHT;
+  static inline std::set<Line, std::greater<void>>::iterator _beg, _end;
+  long long _a;
+  long long mutable _b;
+  std::set<Line, std::greater<void>>::iterator mutable _itr;
+  public:
+  Line(long long _a, long long _b) : _a(_a), _b(_b) {}
+  // 傾きの降順
+  friend bool operator>(Line const &_l, Line const &_r) {
+    return _l._a > _r._a;
+  }
+  // 最小値クエリ処理
+  friend bool operator>(Line const &_l, long long const _x) {
+    if (_l._itr == _end || next(_l._itr) == _end)
+      return false;
+    auto const _nxt = next(_l._itr);
+    auto const _i = _l._itr->_a * _x + _l._itr->_b;
+    auto const _n = _nxt->_a    * _x + _nxt->_b;
+    return _i > _n;
+  }
+  friend bool operator>(long long const _x, Line const &_l) {
+    if (_l._itr == _beg)
+      return true;
+    return operator>(*prev(_l._itr), _x);
+  }
+};
 class CHT {
-  __gnu_pbds::tree<ll, ll, std::greater<ll>, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update>
-    _tree;
+  std::set<Line, std::greater<void>> _tree;
   // 直線の必要性判定
   // https://noshi91.hatenablog.com/entry/2021/03/23/200810
-  ll _k(ll const _a, ll const _b, ll const _c, ll const _d) const {
+  auto _k(long long const _a, long long const _b, long long const _c, long long const _d) const {
     return (_d - _b) / (_a - _c);
   }
-  bool _need1(ll const _a0, ll const _b0, ll const _a1, ll const _b1, ll const _a2, ll const _b2) const {
-    assert(_a0 > _a1 && _a1 > _a2);
-    return _k(_a0, _b0, _a1, _b1) < _k(_a1, _b1, _a2, _b2);
+  bool _need(long long const _al, long long const _bl, long long const _am, long long const _bm, long long const _ar, long long const _br) const {
+    // assert(_al > _am && _am > _ar);
+    return _k(_al, _bl, _am, _bm) < _k(_am, _bm, _ar, _br);
   }
   // 不要な直線の削除
-  void _erase_left(decltype(_tree)::iterator const _l2) {
-    assert(_l2 != _tree.begin());
-    while (1) {
-      auto _l1 = prev(_l2);
-      if (_l1 == _tree.begin())
+  void _erase_left(decltype(_tree)::iterator const _lr) {
+    while (_lr != _tree.begin()) {
+      auto _lm = prev(_lr);
+      if (_lm == _tree.begin())
         return;
-      auto _l0 = prev(_l1);
-      if (_need1(_l0->first, _l0->second, _l1->first, _l1->second, _l2->first, _l2->second))
+      auto _ll = prev(_lm);
+      if (_need(_ll->_a, _ll->_b, _lm->_a, _lm->_b, _lr->_a, _lr->_b))
         return;
-      _tree.erase(_l1);
+      _tree.erase(_lm);
     }
   }
-  void _erase_right(decltype(_tree)::iterator const _l0) {
-    assert(_l0 != _tree.end());
-    while (1) {
-      auto _l1 = next(_l0);
-      if (_l1 == _tree.end())
+  void _erase_right(decltype(_tree)::iterator const _ll) {
+    while (_ll != _tree.end()) {
+      auto _lm = next(_ll);
+      if (_lm == _tree.end())
         return;
-      auto _l2 = next(_l1);
-      if (_l2 == _tree.end())
+      auto _lr = next(_lm);
+      if (_lr == _tree.end())
         return;
-      if (_need1(_l0->first, _l0->second, _l1->first, _l1->second, _l2->first, _l2->second))
+      if (_need(_ll->_a, _ll->_b, _lm->_a, _lm->_b, _lr->_a, _lr->_b))
         return;
-      _tree.erase(_l1);
+      _tree.erase(_lm);
     }
   }
   public:
-  CHT() = default;
-  // 追加クエリ (変更が発生したら true )
-  bool insert(ll const _a, ll const _b) {
+  CHT() {
+    Line::_beg = _tree.begin();
+    Line::_end = _tree.end();
+  }
+  // 追加クエリ (変更が発生したら true)
+  bool insert(long long const _a, long long const _b) {
     // ベースケース
-    if (_tree.size() == 0) {
-      _tree[_a] = _b;
-      return true;
-    }
-    if (_tree.size() == 1) {
-      if (_tree.begin()->first == _a && _tree.begin()->second < _b)
-        return false;
-      _tree[_a] = _b;
+    if (_tree.empty()) {
+      auto _node = _tree.emplace(_a, _b).first;
+      _node->_itr = _node;
       return true;
     }
     // _a が最大
-    if (_a > _tree.begin()->first) {
-      auto _l0 = _tree.insert({_a, _b}).first;
-      _erase_right(_l0);
+    if (_a > _tree.begin()->_a) {
+      auto _ll = _tree.emplace_hint(_tree.begin(), _a, _b);
+      _ll->_itr = _ll;
+      _erase_right(_ll);
       return true;
     }
     // _a が最小
-    if (_tree.rbegin()->first > _a) {
-      auto _l2 = _tree.insert({_a, _b}).first;
-      _erase_left(_l2);
+    if (_tree.rbegin()->_a > _a) {
+      auto _lr = _tree.emplace_hint(_tree.end(), _a, _b);
+      _lr->_itr = _lr;
+      _erase_left(_lr);
       return true;
     }
     // 傾きが同一の直線が存在する
-    if (auto _l1=_tree.find(_a); _l1 != _tree.end()) {
-      if (_l1->second <= _b)
+    Line _line(_a, _b);
+    if (auto _lm=_tree.find(_line); _lm != _tree.end()) {
+      if (_lm->_b <= _b)
         return false;
-      _l1->second = _b;
-      _erase_left(_l1);
-      _erase_right(_l1);
+      _lm->_b = _b;
+      _erase_left(_lm);
+      _erase_right(_lm);
       return true;
     }
     // 直線 (_a, _b) が必要ない
-    if (auto _l2=_tree.upper_bound(_a), _l0=prev(_l2); not _need1(_l0->first, _l0->second, _a, _b, _l2->first, _l2->second))
+    if (auto _lr=_tree.upper_bound(_line), _ll=prev(_lr); not _need(_ll->_a, _ll->_b, _a, _b, _lr->_a, _lr->_b))
       return false;
     // 直線 (_a, _b) を追加
-    auto _l1 = _tree.insert({_a, _b}).first;
-    _erase_left(_l1);
-    _erase_right(_l1);
+    auto _lm = _tree.emplace(_a, _b).first;
+    _lm->_itr = _lm;
+    _erase_left(_lm);
+    _erase_right(_lm);
     return true;
   }
   // 最小値クエリ
-  auto find(ll const x) const {
+  auto find(long long const _x) const {
     assert(not _tree.empty());
-    size_t _lo=0, _hi=_tree.size()-1;
-    while (_lo < _hi) {
-      size_t const _m = std::midpoint(_lo, _hi);
-      auto _itr = _tree.find_by_order(_m);
-      auto _jtr = _tree.find_by_order(_m + 1);
-      if (_itr->first * x + _itr->second < _jtr->first * x + _jtr->second)
-        _hi = _m;
-      else
-        _lo = _m + 1;
-    }
-    auto _itr = _tree.find_by_order(_lo);
-    return std::pair(_itr->first, _itr->second);
+    auto _itr = _tree.lower_bound(_x);
+    return std::pair(_itr->_a, _itr->_b);
   }
 };
 
 // test
-// https://atcoder.jp/contests/dp/submissions/67839379
+// https://atcoder.jp/contests/dp/submissions/67884921
