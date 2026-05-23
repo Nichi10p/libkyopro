@@ -4,34 +4,58 @@
 typedef atcoder::modint998244353 Int;
 
 /**
- * @brief comb(n, r) % MOD
- * @note construct O(N)
- * @note query O(1)
- * @warning MOD must be prime
- * @see https://drken1215.hatenablog.com/entry/2018/06/08/210000
+ * @brief 二項係数 % MOD を計算する
+ * @see https://drken1215.hatenablog.com/entry/2018/06/08/210000 (実装について)
+ * @see https://qiita.com/drken/items/f2ea4b58b0d21621bd51 (写像12相)
  */
 struct CombMod {
   std::vector<Int> _fact, _fact_inv, _inv;
-  explicit CombMod(int const _n)
-  : _fact(_n+1), _fact_inv(_n+1), _inv(_n+1)
+  explicit CombMod(int const N)
+  : _fact(N+1), _fact_inv(N+1), _inv(N+1)
   {
     _fact[0]     = _fact[1]     = Int::raw(1);
     _fact_inv[0] = _fact_inv[1] = Int::raw(1);
     _inv[1] = Int::raw(1);
-    for (int _i=2; _i <= _n; ++_i) {
-      auto const [_q, _r] = std::div(Int::mod(), _i);
-      _inv[_i] = -Int(_q) * _inv[_r];
-      _fact[_i] = _fact[_i-1] * Int::raw(_i);
-      _fact_inv[_i] = _fact_inv[_i-1] * _inv[_i];
+    for (int i=2; i <= N; ++i) {
+      auto const [q, r] = std::div(Int::mod(), i);
+      _inv[i] = -Int(q) * _inv[r];
+      _fact[i] = _fact[i-1] * Int::raw(i);
+      _fact_inv[i] = _fact_inv[i-1] * _inv[i];
     }
   }
-  Int comb(int const _n, int const _r) const {
-    if (_r < 0 || _n < _r)
+  Int comb(int const n, int const r) const {
+    if (r < 0 || n < r)
       return 0;
     else
-      return _fact.at(_n) * _fact_inv[_n-_r] * _fact_inv[_r];
+      return _fact.at(n) * _fact_inv[n-r] * _fact_inv[r];
   }
-  Int multicomb(int const _n, int const _r) const {
-    return comb(_n+_r-1, _r);
+};
+
+/**
+ * @brief 二項係数 % MOD を計算する (N が大きく R が小さいとき)
+ * @see https://drken1215.hatenablog.com/entry/2018/06/08/210000 (実装について)
+ * @see https://qiita.com/drken/items/f2ea4b58b0d21621bd51 (写像12相)
+ */
+struct CombMod {
+  std::vector<Int> _inv;
+  explicit CombMod(int const R)
+  : _inv(R+1)
+  {
+    _inv[1] = Int::raw(1);
+    for (int i=2; i <= R; ++i) {
+      auto const [q, r] = std::div(Int::mod(), i);
+      _inv[i] = -Int(q) * _inv[r];
+    }
+  }
+  Int comb(long long const n, int r) const {
+    if (r < 0 || n < r)
+      return 0;
+    assert(r < (int)_inv.size());
+    Int ret(1);
+    for (int i=1; i <= r; ++i) {
+      ret *= n-i+1;
+      ret *= _inv[i];
+    }
+    return ret;
   }
 };
